@@ -1,0 +1,30 @@
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: financeiro-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=lambda,apigateway,sqs,sns,logs,iam
+      - DEBUG=0
+    volumes:
+      - "./.localstack:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  mysql:
+    image: mysql:8.0
+    container_name: financeiro-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-financeiro}
+      MYSQL_USER: ${DB_USER:-app_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env}
+    ports:
+      - "3306:3306"
+    volumes:
+      - "./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro"
+      - "mysql_data:/var/lib/mysql"
+
+volumes:
+  mysql_data:
