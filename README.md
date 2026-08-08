@@ -73,6 +73,29 @@ bash infra/setup_aws.sh
 pytest tests/
 ```
 
+## Uso via CLI
+
+Forma mais rápida de testar o agente sem passar pelo LocalStack/API Gateway (precisa só do
+MySQL rodando):
+
+```bash
+docker compose up -d mysql
+python cli.py
+```
+
+```
+Pergunta> Qual o total de ativos do cliente 1 em renda fixa?
+[ferramenta: sql]
+[sql: SELECT COUNT(*) FROM ativos WHERE cliente_id = 1 AND categoria = 'renda_fixa']
+O cliente 1 tem 1 ativo em renda fixa.
+[auditoria: ac4fa265-...]
+
+Pergunta> Qual o limite de alocacao em fundos imobiliarios recomendado?
+[ferramenta: rag]
+Recomenda-se concentração máxima de 25% do patrimônio em FIIs por cliente...
+[auditoria: 8b554d18-...]
+```
+
 ## Uso via MCP
 
 Além da API HTTP, o agente pode ser usado como uma ferramenta MCP padrão — útil para
@@ -96,6 +119,7 @@ Isso expõe a tool `perguntar_financeiro(pergunta)`, que roda a mesma lógica de
 
 ```
 ├── SPEC.md                    # especificação completa (Spec-Driven Development)
+├── cli.py                      # CLI interativa para testar o agente localmente
 ├── docker-compose.yml          # LocalStack + MySQL
 ├── infra/setup_aws.sh          # provisiona os recursos AWS no LocalStack
 ├── lambda/
