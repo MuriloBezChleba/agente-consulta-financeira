@@ -55,6 +55,7 @@ def lambda_handler(event, context):
         sql_gerado=resultado.get("sql_gerado"),
         resultado_resumo=resultado.get("resposta") or resultado.get("erro"),
         status=resultado["status"],
+        ferramenta=resultado.get("ferramenta", "sql"),
     )
 
     if resultado["status"] == "bloqueado":
@@ -63,5 +64,6 @@ def lambda_handler(event, context):
     return _resposta_http(200, {
         "resposta": resultado["resposta"],
         "sql_gerado": resultado["sql_gerado"],
+        "ferramenta": resultado.get("ferramenta"),
         "auditoria_id": auditoria_id,
     })

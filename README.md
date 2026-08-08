@@ -1,6 +1,6 @@
 # Agente de Consulta Financeira
 
-Agente de IA que traduz perguntas em linguagem natural para SQL, consulta uma base financeira (MySQL) e retorna uma resposta resumida — com guardrails de segurança, auditoria completa e processamento assíncrono para relatórios pesados.
+Agente de IA que roteia perguntas em linguagem natural entre duas ferramentas — consulta estruturada (texto → SQL → MySQL) ou busca em documentos de política de investimento (RAG, FAISS) — e retorna uma resposta resumida. Guardrails de segurança, auditoria completa, processamento assíncrono para relatórios pesados, e uma interface adicional via **MCP (Model Context Protocol)** para uso por outros agentes/clientes.
 
 Arquitetura orientada a eventos rodando sobre a API real da AWS (API Gateway, Lambda, SQS, SNS), emulada localmente via [LocalStack](https://localstack.cloud) — sem custo de nuvem, com código 100% portável para uma conta AWS real.
 
@@ -13,22 +13,32 @@ Construí isso pra aplicar, na prática, um fluxo real de agente de IA orientado
 ## Arquitetura
 
 ```
-Cliente (HTTP)
-   │
-   ▼
-API Gateway (LocalStack)
-   │
-   ▼
-Lambda: handler.py ──► agent.py (LangChain: linguagem natural → SQL)
-   │                         │
-   │                         ▼
-   │                    db.py (MySQL, somente leitura)
+Cliente (HTTP)                    Cliente MCP (Claude Desktop, outro agente...)
+   │                                          │
+   ▼                                          ▼
+API Gateway (LocalStack)              mcp_server/server.py (FastMCP)
+   │                                          │
+   ▼                                          │
+Lambda: handler.py ───────────┐               │
+   │                          │               │
+   │                          ▼               ▼
+   │                agent.py — roteador (LLM decide: dados x politica)
+   │                          │
+   │              ┌───────────┴───────────┐
+   │              ▼                       ▼
+   │     Ferramenta SQL            Ferramenta RAG
+   │     (NL → SQL → guardrail     (embeddings → FAISS →
+   │      → db.py → MySQL)          contexto → resumo)
+   │              │                       │
+   │              └───────────┬───────────┘
+   │                          ▼
+   │              audit_log (MySQL) — pergunta, ferramenta usada, resultado
    │
    ├── modo "assincrono" ──► SQS ──► Lambda: sqs_worker.py ──► SNS (notificação)
-   │
-   ▼
-audit_log (MySQL) — toda pergunta, SQL gerado e resultado ficam registrados
 ```
+
+Chat (roteador, geração de SQL, resumos): **Groq**. Embeddings do RAG: **NVIDIA NIM**
+(build.nvidia.com) — dois provedores porque Groq não oferece embeddings; ver [`SPEC.md`](./SPEC.md#10-perguntas-em-aberto) para o porquê dessa escolha.
 
 ## Guardrails de segurança
 
@@ -37,7 +47,7 @@ audit_log (MySQL) — toda pergunta, SQL gerado e resultado ficam registrados
 
 ## Stack
 
-Python · LangChain · MySQL · AWS (API Gateway, Lambda, SQS, SNS) via LocalStack · Docker
+Python · LangChain · Groq (chat) · NVIDIA NIM (embeddings) · FAISS (RAG) · MCP/FastMCP · MySQL · AWS (API Gateway, Lambda, SQS, SNS) via LocalStack · Docker
 
 ## Como rodar localmente
 
@@ -46,7 +56,8 @@ Pré-requisitos: Docker, Python 3.12+, [AWS CLI v2](https://aws.amazon.com/cli/)
 ```bash
 # 1. Configurar variáveis de ambiente
 cp .env.example .env
-# edite o .env com sua NVIDIA_API_KEY (gratuita em build.nvidia.com) e uma senha de banco local
+# edite o .env com NVIDIA_API_KEY (gratuita em build.nvidia.com, so para embeddings),
+# GROQ_API_KEY (gratuita em console.groq.com, para chat) e uma senha de banco local
 
 # 2. Subir LocalStack + MySQL
 docker compose up -d
@@ -62,6 +73,19 @@ bash infra/setup_aws.sh
 pytest tests/
 ```
 
+## Uso via MCP
+
+Além da API HTTP, o agente pode ser usado como uma ferramenta MCP padrão — útil para
+conectar a Claude Desktop ou a outro agente que fale o protocolo:
+
+```bash
+pip install -r mcp_server/requirements.txt
+python mcp_server/server.py
+```
+
+Isso expõe a tool `perguntar_financeiro(pergunta)`, que roda a mesma lógica de negócio
+(`agent.responder_pergunta`) usada pelo handler HTTP, incluindo guardrail e auditoria.
+
 ### Solução de problemas conhecidos
 
 - **LocalStack pedindo `LOCALSTACK_AUTH_TOKEN` mesmo em serviços gratuitos**: a tag `latest` mudou de comportamento. Este projeto já fixa a imagem em `localstack/localstack:3.8.1` no `docker-compose.yml`, que roda 100% community sem token.
@@ -71,21 +95,26 @@ pytest tests/
 ## Estrutura do projeto
 
 ```
-├── SPEC.md              # especificação completa (Spec-Driven Development)
-├── docker-compose.yml    # LocalStack + MySQL
-├── infra/setup_aws.sh    # provisiona os recursos AWS no LocalStack
+├── SPEC.md                    # especificação completa (Spec-Driven Development)
+├── docker-compose.yml          # LocalStack + MySQL
+├── infra/setup_aws.sh          # provisiona os recursos AWS no LocalStack
 ├── lambda/
-│   ├── handler.py        # entrypoint API Gateway
-│   ├── agent.py           # orquestração do agente (NL → SQL → resposta)
-│   ├── db.py               # acesso ao MySQL + guardrail de segurança
-│   └── sqs_worker.py       # processamento assíncrono de relatórios
-├── db/schema.sql          # schema + dados sintéticos
-└── tests/                 # testes unitários
+│   ├── handler.py               # entrypoint API Gateway
+│   ├── agent.py                  # roteador do agente (dados x politica) + resumos
+│   ├── rag.py                     # busca vetorial (FAISS) sobre documentos de política
+│   ├── db.py                       # acesso ao MySQL + guardrail de segurança
+│   └── sqs_worker.py                # processamento assíncrono de relatórios
+├── mcp_server/
+│   └── server.py                     # expõe o agente como ferramenta MCP (FastMCP)
+├── db/
+│   ├── schema.sql                     # schema + dados sintéticos
+│   └── documentos/                     # fonte do RAG (políticas de investimento sintéticas)
+└── tests/                               # testes unitários
 ```
 
 ## Status
 
-Fluxo completo validado localmente de ponta a ponta: pergunta em linguagem natural → SQL gerado pelo agente → execução no MySQL → resumo em linguagem natural → registro em auditoria. Próximos passos documentados em [`SPEC.md`](./SPEC.md#10-perguntas-em-aberto).
+Fluxo completo validado localmente de ponta a ponta nas duas ferramentas: consulta estruturada (pergunta → SQL → MySQL → resumo) e RAG (pergunta → busca vetorial → contexto → resumo), com roteamento automático entre as duas e registro em auditoria. Servidor MCP validado (importação e registro da tool). Próximos passos documentados em [`SPEC.md`](./SPEC.md#10-perguntas-em-aberto).
 
 ## Autor
 

@@ -58,6 +58,7 @@ def registrar_auditoria(
     sql_gerado: str | None,
     resultado_resumo: str | None,
     status: str,
+    ferramenta: str = "sql",
     usuario: str = "anonimo",
 ) -> str:
     """Grava a interação na tabela audit_log e retorna o id gerado."""
@@ -68,10 +69,10 @@ def registrar_auditoria(
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO audit_log (id, pergunta, sql_gerado, resultado_resumo, usuario, status, timestamp)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO audit_log (id, pergunta, sql_gerado, resultado_resumo, usuario, status, ferramenta, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (auditoria_id, pergunta, sql_gerado, resultado_resumo, usuario, status, datetime.utcnow()),
+            (auditoria_id, pergunta, sql_gerado, resultado_resumo, usuario, status, ferramenta, datetime.utcnow()),
         )
         conn.commit()
         cursor.close()

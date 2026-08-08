@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     resultado_resumo TEXT,
     usuario VARCHAR(80) DEFAULT 'anonimo',
     status ENUM('sucesso', 'bloqueado', 'erro') NOT NULL,
+    ferramenta ENUM('sql', 'rag') NOT NULL DEFAULT 'sql',
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

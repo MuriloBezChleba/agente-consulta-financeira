@@ -35,6 +35,7 @@ def lambda_handler(event, context):
             sql_gerado=resultado.get("sql_gerado"),
             resultado_resumo=resultado.get("resposta") or resultado.get("erro"),
             status=resultado["status"],
+            ferramenta=resultado.get("ferramenta", "sql"),
         )
 
         sns.publish(
