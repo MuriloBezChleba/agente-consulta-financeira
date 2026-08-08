@@ -9,7 +9,7 @@ from langchain_nvidia_ai_endpoints import ChatNVIDIA
 load_dotenv()
 
 client = ChatNVIDIA(
-    model=os.environ.get("LLM_MODEL", "meta/llama-3.3-70b-instruct"),
+    model=os.environ.get("LLM_MODEL", "meta/llama-3.1-8b-instruct"),
     api_key=os.environ["NVIDIA_API_KEY"],
     temperature=0.2,
     top_p=0.7,

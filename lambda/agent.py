@@ -39,10 +39,10 @@ PROMPT_RESUMO = ChatPromptTemplate.from_messages([
 def _get_llm() -> ChatNVIDIA:
     # build.nvidia.com (NVIDIA NIM) — endpoint compativel, modelos hospedados na NVIDIA.
     return ChatNVIDIA(
-        model=os.environ.get("LLM_MODEL", "meta/llama-3.3-70b-instruct"),
+        model=os.environ.get("LLM_MODEL", "meta/llama-3.1-8b-instruct"),
         api_key=os.environ["NVIDIA_API_KEY"],
         temperature=0,
-        timeout=120,  # modelos 70B podem passar do timeout padrao de 60s
+        timeout=180,  # modelos 70B podem passar do timeout padrao de 60s, free tier as vezes oscila
     )
 
 

@@ -1,12 +1,17 @@
 services:
   localstack:
-    image: localstack/localstack:latest
+    # Pinned em 3.8.1: versoes mais recentes de "latest" passaram a exigir
+    # LOCALSTACK_AUTH_TOKEN mesmo para servicos gratuitos (lambda/sqs/sns/apigateway).
+    image: localstack/localstack:3.8.1
     container_name: financeiro-localstack
     ports:
       - "4566:4566"
     environment:
       - SERVICES=lambda,apigateway,sqs,sns,logs,iam
       - DEBUG=0
+      # Dependencias pesadas (langchain etc.) demoram a importar no cold start;
+      # timeout padrao do LocalStack pra subir o runtime e curto demais.
+      - LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT=240
     volumes:
       - "./.localstack:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"

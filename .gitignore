@@ -14,6 +14,10 @@ venv/
 .localstack/
 volume/
 
+# Build de deploy da Lambda (gerado por infra/setup_aws.sh)
+lambda/package/
+lambda/function.zip
+
 # IDE
 .vscode/
 .idea/

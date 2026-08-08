@@ -41,25 +41,32 @@ Python · LangChain · MySQL · AWS (API Gateway, Lambda, SQS, SNS) via LocalSta
 
 ## Como rodar localmente
 
-Pré-requisitos: Docker, Python 3.12+, [`awscli-local`](https://github.com/localstack/awscli-local).
+Pré-requisitos: Docker, Python 3.12+, [AWS CLI v2](https://aws.amazon.com/cli/).
 
 ```bash
 # 1. Configurar variáveis de ambiente
 cp .env.example .env
-# edite o .env com sua OPENAI_API_KEY e uma senha de banco local
+# edite o .env com sua NVIDIA_API_KEY (gratuita em build.nvidia.com) e uma senha de banco local
 
 # 2. Subir LocalStack + MySQL
-docker-compose up -d
+docker compose up -d
 
 # 3. Instalar dependências
 pip install -r lambda/requirements.txt
 
 # 4. Criar os recursos AWS (API Gateway, Lambda, SQS, SNS) no LocalStack
+export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1
 bash infra/setup_aws.sh
 
 # 5. Rodar os testes
 pytest tests/
 ```
+
+### Solução de problemas conhecidos
+
+- **LocalStack pedindo `LOCALSTACK_AUTH_TOKEN` mesmo em serviços gratuitos**: a tag `latest` mudou de comportamento. Este projeto já fixa a imagem em `localstack/localstack:3.8.1` no `docker-compose.yml`, que roda 100% community sem token.
+- **`awslocal` com segmentation fault (Windows/Git Bash)**: em vez do wrapper, use o `aws` CLI real com `--endpoint-url=http://localhost:4566` e credenciais fake (`AWS_ACCESS_KEY_ID=test`) — é o que `infra/setup_aws.sh` assume.
+- **Lambda travando com `exec format error` / `fork/exec /var/runtime/bootstrap`**: sintoma de um bug de emulação do executor Docker-in-Docker do LocalStack em alguns setups de Docker Desktop + WSL2, mesmo com imagem `amd64` nativa confirmada. Contorno usado para validar a lógica de ponta a ponta: invocar `handler.lambda_handler(event, None)` diretamente em um processo Python local (apontando `DB_HOST=localhost` e `AWS_ENDPOINT_URL=http://localhost:4566`), sem passar pelo executor de container da Lambda. O código do handler é idêntico ao que rodaria dentro do container.
 
 ## Estrutura do projeto
 
@@ -78,7 +85,7 @@ pytest tests/
 
 ## Status
 
-Projeto em desenvolvimento ativo — próximos passos documentados em [`SPEC.md`](./SPEC.md#10-perguntas-em-aberto).
+Fluxo completo validado localmente de ponta a ponta: pergunta em linguagem natural → SQL gerado pelo agente → execução no MySQL → resumo em linguagem natural → registro em auditoria. Próximos passos documentados em [`SPEC.md`](./SPEC.md#10-perguntas-em-aberto).
 
 ## Autor
 
