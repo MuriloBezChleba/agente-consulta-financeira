@@ -42,6 +42,7 @@ def _get_llm() -> ChatNVIDIA:
         model=os.environ.get("LLM_MODEL", "meta/llama-3.3-70b-instruct"),
         api_key=os.environ["NVIDIA_API_KEY"],
         temperature=0,
+        timeout=120,  # modelos 70B podem passar do timeout padrao de 60s
     )
 
 
