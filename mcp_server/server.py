@@ -1,7 +1,12 @@
 """Servidor MCP (Model Context Protocol) que expõe o agente de consulta financeira
-como uma ferramenta padrão, utilizável por qualquer cliente MCP (Claude Desktop,
+como duas ferramentas padrão, utilizáveis por qualquer cliente MCP (Claude Desktop,
 outros agentes, etc.) — mesma lógica de negócio usada pelo handler Lambda/API
 Gateway, apenas com uma interface de transporte diferente.
+
+Diferente do endpoint HTTP (que roteia internamente via LLM), aqui cada ferramenta
+é exposta separadamente: quem decide qual usar é o cliente MCP (outro agente/LLM),
+com base na descrição de cada tool -- um padrão mais próximo de "orquestração de
+múltiplos agentes/ferramentas" do que um único ponto de entrada com roteador oculto.
 """
 
 import sys
@@ -15,21 +20,13 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 
 from fastmcp import FastMCP
 
-from agent import responder_pergunta
+from agent import responder_com_dados, responder_com_documentos
 from db import registrar_auditoria
 
 mcp = FastMCP("Agente de Consulta Financeira")
 
 
-@mcp.tool()
-def perguntar_financeiro(pergunta: str) -> str:
-    """Responde perguntas sobre dados financeiros (clientes, ativos, transações) ou sobre
-    política de investimento (renda fixa, renda variável, fundos imobiliários), roteando
-    automaticamente entre consulta ao banco (SQL, somente leitura) e busca em documentos
-    (RAG). Toda interação fica registrada em auditoria.
-    """
-    resultado = responder_pergunta(pergunta)
-
+def _auditar_e_formatar(pergunta: str, resultado: dict) -> str:
     registrar_auditoria(
         pergunta=pergunta,
         sql_gerado=resultado.get("sql_gerado"),
@@ -42,6 +39,29 @@ def perguntar_financeiro(pergunta: str) -> str:
         return f"Consulta bloqueada por segurança: {resultado['erro']}"
 
     return resultado["resposta"]
+
+
+@mcp.tool()
+def consultar_dados_financeiros(pergunta: str) -> str:
+    """Consulta dados financeiros estruturados: clientes, ativos e transações
+    específicas (valores, quantidades, categorias, datas). Traduz a pergunta para
+    SQL de LEITURA (somente SELECT, com guardrail de segurança) e executa contra o
+    banco. Use para perguntas sobre números e registros concretos -- ex.: "quanto o
+    cliente 5 tem em renda variável", "quantas transações de compra houve em julho".
+    """
+    resultado = responder_com_dados(pergunta)
+    return _auditar_e_formatar(pergunta, resultado)
+
+
+@mcp.tool()
+def consultar_politica_investimento(pergunta: str) -> str:
+    """Consulta a documentação de política de investimento (regras de alocação,
+    liquidez, tributação) para renda fixa, renda variável e fundos imobiliários (FII)
+    via busca vetorial (RAG). Use para perguntas conceituais/normativas -- ex.: "qual
+    o limite de alocação em FIIs", "qual a liquidez de renda variável".
+    """
+    resultado = responder_com_documentos(pergunta)
+    return _auditar_e_formatar(pergunta, resultado)
 
 
 if __name__ == "__main__":

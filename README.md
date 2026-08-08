@@ -98,16 +98,25 @@ Recomenda-se concentração máxima de 25% do patrimônio em FIIs por cliente...
 
 ## Uso via MCP
 
-Além da API HTTP, o agente pode ser usado como uma ferramenta MCP padrão — útil para
-conectar a Claude Desktop ou a outro agente que fale o protocolo:
+Além da API HTTP, o agente pode ser usado por qualquer cliente MCP (Claude Desktop, outro
+agente que fale o protocolo, etc.):
 
 ```bash
 pip install -r mcp_server/requirements.txt
 python mcp_server/server.py
 ```
 
-Isso expõe a tool `perguntar_financeiro(pergunta)`, que roda a mesma lógica de negócio
-(`agent.responder_pergunta`) usada pelo handler HTTP, incluindo guardrail e auditoria.
+Diferente do endpoint HTTP (que roteia internamente via LLM), o servidor MCP expõe **duas
+ferramentas separadas** — quem decide qual usar é o cliente MCP (outro agente/LLM), com base
+na descrição de cada uma:
+
+- **`consultar_dados_financeiros(pergunta)`** — consulta estruturada (SQL, somente leitura)
+  sobre clientes, ativos e transações.
+- **`consultar_politica_investimento(pergunta)`** — busca vetorial (RAG) sobre a documentação
+  de política de investimento.
+
+Ambas reutilizam a mesma lógica de negócio de `agent.py` (guardrail, execução, resumo) e
+registram cada interação em `audit_log`.
 
 ### Solução de problemas conhecidos
 
