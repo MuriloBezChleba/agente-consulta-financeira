@@ -2,7 +2,7 @@
 
 import os
 
-from langchain_openai import ChatOpenAI
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
@@ -36,10 +36,11 @@ PROMPT_RESUMO = ChatPromptTemplate.from_messages([
 ])
 
 
-def _get_llm() -> ChatOpenAI:
-    return ChatOpenAI(
-        model=os.environ.get("LLM_MODEL", "gpt-4o-mini"),
-        api_key=os.environ["OPENAI_API_KEY"],
+def _get_llm() -> ChatNVIDIA:
+    # build.nvidia.com (NVIDIA NIM) — endpoint compativel, modelos hospedados na NVIDIA.
+    return ChatNVIDIA(
+        model=os.environ.get("LLM_MODEL", "meta/llama-3.3-70b-instruct"),
+        api_key=os.environ["NVIDIA_API_KEY"],
         temperature=0,
     )
 

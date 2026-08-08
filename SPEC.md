@@ -159,5 +159,5 @@ Schema completo em `db/schema.sql`.
 
 ## 10. Perguntas em Aberto
 
-- Qual LLM usar para geração de SQL: OpenAI, Bedrock (Claude/Titan) ou Vertex AI? → decidir na fase de implementação, testar qual gera SQL mais confiável para o schema.
+- ~~Qual LLM usar para geração de SQL~~ → decidido: modelos hospedados no build.nvidia.com (NVIDIA NIM, ex. `meta/llama-3.3-70b-instruct`), via endpoint compatível e camada gratuita para desenvolvimento.
 - Vale adicionar reranking/validação de SQL via segundo LLM (self-check) antes de executar?
